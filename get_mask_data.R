@@ -12,19 +12,15 @@ resp <- content(request, as = "text", encoding = "UTF-8")
 parsed <- jsonlite::fromJSON(resp, flatten = TRUE) %>%
   data.frame() %>% as_tibble()
 
+parsed
+
 mask_df <- parsed %>% 
   mutate(stock = case_when(stores.remain_stat == "empty" ~ "1~0개",
                            stores.remain_stat == "few" ~ "2~29개",
                            stores.remain_stat == "some" ~ "30~99개",
                            stores.remain_stat == "plenty" ~ "100개 이상")) %>% 
   mutate(stock = factor(stock, levels=c("100개 이상", "30~99개", "2~29개", "1~0개"))) %>% 
-  select(name = stores.name, address = stores.addr, lat=stores.lat, lng = stores.lng, stock)
-
-# mask_df %>% 
-#   write_csv(paste0('data/mask_', Sys.time(), ".csv"))
-
-# mask_df %>% 
-#   write_rds(paste0('data/mask_', Sys.time(), ".rds"))
+  select(date_time = stores.stock_at, name = stores.name, address = stores.addr, lat=stores.lat, lng = stores.lng, stock)
 
 mask_df %>% 
   write_csv(paste0('data/mask_', Sys.time(), ".csv"))

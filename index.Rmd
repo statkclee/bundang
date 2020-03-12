@@ -4,14 +4,9 @@ subtitle: ""
 output:
   flexdashboard::flex_dashboard:
     orientation: columns
+    theme: readable
+    source_code: embed
     vertical_layout: fill
-    toc: yes
-    toc_depth: 2
-    toc_float: true
-    highlight: tango
-    number_section: true
-    code_folding: show
-mainfont: NanumGothic
 editor_options: 
   chunk_output_type: console
 ---

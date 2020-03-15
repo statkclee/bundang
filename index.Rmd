@@ -65,7 +65,7 @@ bundang_sf <- sungnam_sf %>%
 
 mask_dong_df <- mask_df %>% 
   transmute(date_time, name, lat, lng, stock, icon, color,
-          EMD_KOR_NM = str_extract(address, "\\([가-힣].*동") %>% str_remove("\\("),
+          EMD_KOR_NM = str_extract(address, "\\([가-힣]{2}동") %>% str_remove("\\("),
           address)
 
 bundang_mask_sf <- left_join(bundang_sf, mask_dong_df) 
@@ -76,29 +76,74 @@ bundang_mask_sf <- left_join(bundang_sf, mask_dong_df)
 
 ```{r mask}
 
-mask_icons <- awesomeIcons(icon = bundang_mask_sf$icon,
-                         markerColor = bundang_mask_sf$color,
-                         library = "glyphicon")
+mask_split_df <- split(bundang_mask_sf, bundang_mask_sf$stock)
+
 
 ## 분당을 시각화
-bundang_mask_sf %>% 
-  leaflet() %>%
+
+map <- leaflet(bundang_mask_sf) %>%
     addTiles() %>% 
     addProviderTiles(providers$OpenStreetMap) %>% 
     addPolygons(opacity = 0.1, fillOpacity = 0.0,
-              weight = 2,
-              highlightOptions = highlightOptions(color = "black", weight = 3,  bringToFront = TRUE),
-              labelOptions = labelOptions(
-              style = list("font-weight" = "normal", padding = "3px 8px"),
-              textsize = "15px",
-              direction = "auto")) %>% 
-    addAwesomeMarkers(group="mask", lng=~lng, lat=~lat, clusterOptions = markerClusterOptions(), icon = ~mask_icons[stock],
+      weight = 2,
+      highlightOptions = highlightOptions(color = "black", weight = 3,  bringToFront = TRUE),
+      labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto"))
+
+
+names(mask_split_df)[3:4] %>%
+  purrr::walk( function(df) {
+    map <<- map %>%
+      addAwesomeMarkers(data=mask_split_df[[df]], lng=~lng, lat=~lat, 
+                        group = df,
+                        clusterOptions = markerClusterOptions(), 
                    popup = ~ as.character(paste0("<strong> 약국명:", `name`, "</strong><br>", "-----------------------------------------------------------<br>",
                                                 "&middot; 기준시점: ", `date_time`, "<br>",
                                                 "&middot; 재고: ", `stock`, "<br>",
                                                  "&middot; 주소: ", `address`, "<br>"
                    )))
+  })
 
+map %>%
+  addLayersControl(
+    overlayGroups = names(mask_split_df),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+```
+
+동별 마스크
+============================================================================
+
+```{r barplot}
+library(plotly)
+
+약국순 <- mask_df %>% 
+  mutate(동명 = str_extract(address, "\\([가-힣0-9]{2,3}동") %>% str_remove("\\(")) %>% 
+  count(동명) %>% 
+  arrange(desc(n)) %>% 
+  pull(동명) %>% 
+  rev()
+
+mask_g <- mask_df %>% 
+  mutate(동명 = str_extract(address, "\\([가-힣]{2}동") %>% str_remove("\\(")) %>% 
+  mutate(동명 = factor(동명, levels=약국순)) %>% 
+  select(기준시점=date_time,
+         약국=name,
+         주소=address,
+         재고상황=stock,
+         동명) %>% 
+  count(동명, 재고상황) %>% 
+  rename(약국수=n) %>% 
+  ggplot(aes(x=동명, y=약국수, fill=재고상황)) +
+    geom_col() +
+    coord_flip() +
+    labs(x="", y="", title="분당을 약국 마스크 현황") +
+    theme_classic() +
+    theme(legend.position = "top")
+
+ggplotly(mask_g)
 ```
 
 

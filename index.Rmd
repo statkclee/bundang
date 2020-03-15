@@ -21,6 +21,8 @@ knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 library(tidyverse)
 library(httr)
 library(jsonlite)
+library(sf)
+library(leaflet)
 
 ## 경기도 성남시 분당구
 url <- "https://8oi9s0nnth.apigw.ntruss.com/corona19-masks/v1/storesByAddr/json?address=%EA%B2%BD%EA%B8%B0%EB%8F%84%20%EC%84%B1%EB%82%A8%EC%8B%9C%20%EB%B6%84%EB%8B%B9%EA%B5%AC"
@@ -32,39 +34,73 @@ resp <- content(request, as = "text", encoding = "UTF-8")
 parsed <- jsonlite::fromJSON(resp, flatten = TRUE) %>%
   data.frame() %>% as_tibble()
 
-parsed
-
 mask_df <- parsed %>% 
   mutate(stock = case_when(stores.remain_stat == "empty" ~ "1~0개",
                            stores.remain_stat == "few" ~ "2~29개",
                            stores.remain_stat == "some" ~ "30~99개",
                            stores.remain_stat == "plenty" ~ "100개 이상")) %>% 
   mutate(stock = factor(stock, levels=c("100개 이상", "30~99개", "2~29개", "1~0개"))) %>% 
-  select(date_time = stores.stock_at, name = stores.name, address = stores.addr, lat=stores.lat, lng = stores.lng, stock)
+  select(date_time = stores.stock_at, name = stores.name, address = stores.addr, lat=stores.lat, lng = stores.lng, stock)  %>% 
+  mutate(color = case_when(stock == "1~0개" ~ "white",
+                           stock == "2~29개" ~ "red",
+                           stock == "30~99개" ~ "yellow",
+                           stock == "100개 이상" ~ "green",
+                           TRUE ~ "white")) %>% 
+  mutate(icon="first-aid")
 
+
+
+## 성남시 Shapefile ...
+sungnam_sf <- st_read("data/sungnam/sungnam_sf.shp")
+
+`분당을` <- c("구미동", "구미1동", "금곡동", "분당동", "수내1동", "수내2동", "수내3동", 
+              "정자동", "정자1동", "정자2동", "정자3동")
+
+`OSM_분당을` <- c("구미동", "궁내동", "금곡동", "동원동", "분당동", "서현동", "수내동",
+               "수진동", "정자동") 
+
+bundang_sf <- sungnam_sf %>% 
+  filter(SIGUNGU %in% c("분당구"),
+         EMD_KOR_NM %in% `OSM_분당을`)
+
+mask_dong_df <- mask_df %>% 
+  transmute(date_time, name, lat, lng, stock, icon, color,
+          EMD_KOR_NM = str_extract(address, "\\([가-힣].*동") %>% str_remove("\\("),
+          address)
+
+bundang_mask_sf <- left_join(bundang_sf, mask_dong_df) 
 ```
 
 약국별 현황
 ============================================================================
 
 ```{r mask}
-library(tidyverse)
-library(httr)
-library(jsonlite)
 
-library(leaflet)
+mask_icons <- awesomeIcons(icon = bundang_mask_sf$icon,
+                         markerColor = bundang_mask_sf$color,
+                         library = "glyphicon")
 
-# mask_df <- read_csv('data/mask_df.csv')
-
-leaflet(data = mask_df) %>% 
-  addProviderTiles(providers$OpenStreetMap) %>% 
-  addMarkers(lng=~lng, lat=~lat, clusterOptions = markerClusterOptions(),
+## 분당을 시각화
+bundang_mask_sf %>% 
+  leaflet() %>%
+    addTiles() %>% 
+    addProviderTiles(providers$OpenStreetMap) %>% 
+    addPolygons(opacity = 0.1, fillOpacity = 0.0,
+              weight = 2,
+              highlightOptions = highlightOptions(color = "black", weight = 3,  bringToFront = TRUE),
+              labelOptions = labelOptions(
+              style = list("font-weight" = "normal", padding = "3px 8px"),
+              textsize = "15px",
+              direction = "auto")) %>% 
+    addAwesomeMarkers(group="mask", lng=~lng, lat=~lat, clusterOptions = markerClusterOptions(), icon = ~mask_icons[stock],
                    popup = ~ as.character(paste0("<strong> 약국명:", `name`, "</strong><br>", "-----------------------------------------------------------<br>",
                                                 "&middot; 기준시점: ", `date_time`, "<br>",
                                                 "&middot; 재고: ", `stock`, "<br>",
                                                  "&middot; 주소: ", `address`, "<br>"
-                   ))) 
+                   )))
+
 ```
+
 
 데이터
 ============================================================================
@@ -80,4 +116,3 @@ DT::datatable()
 
 마스크 사용법 
 ============================================================================
-

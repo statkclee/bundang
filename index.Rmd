@@ -12,6 +12,9 @@ editor_options:
   chunk_output_type: console
 ---
 
+<script>
+$('.navbar-logo').wrap('<a href="https://blog.naver.com/777byung">');
+</script>
 
 ``` {r, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE,

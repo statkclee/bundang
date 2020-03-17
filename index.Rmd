@@ -39,13 +39,13 @@ mask_df <- parsed %>%
   mutate(stock = case_when(stores.remain_stat == "empty" ~ "1~0개",
                            stores.remain_stat == "few" ~ "2~29개",
                            stores.remain_stat == "some" ~ "30~99개",
-                           stores.remain_stat == "plenty" ~ "100개 이상")) %>% 
-  mutate(stock = factor(stock, levels=c("100개 이상", "30~99개", "2~29개", "1~0개"))) %>% 
+                           stores.remain_stat == "plenty" ~ "99개 초과")) %>% 
+  mutate(stock = factor(stock, levels=c("99개 초과", "30~99개", "2~29개", "1~0개"))) %>% 
   select(date_time = stores.stock_at, name = stores.name, address = stores.addr, lat=stores.lat, lng = stores.lng, stock)  %>% 
   mutate(color = case_when(stock == "1~0개" ~ "white",
                            stock == "2~29개" ~ "red",
                            stock == "30~99개" ~ "yellow",
-                           stock == "100개 이상" ~ "green",
+                           stock == "99개 초과" ~ "green",
                            TRUE ~ "white")) %>% 
   mutate(icon="first-aid")
 
@@ -160,5 +160,8 @@ mask_df %>%
 DT::datatable()
 ```
 
-마스크 사용법 {#howto} 
+휴일 약국 {#howto} 
 ============================================================================
+
+
+- [휴일지킴이 약국](https://www.pharm114.or.kr/main.asp)

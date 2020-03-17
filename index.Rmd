@@ -1,8 +1,9 @@
 ---
-title: "김병욱"
+title: "."
 subtitle: ""
 output:
   flexdashboard::flex_dashboard:
+    logo: logo.png
     orientation: columns
     theme: readable
     source_code: embed
